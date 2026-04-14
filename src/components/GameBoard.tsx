@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { BOARD_HEIGHT, BOARD_WIDTH } from '../game/constants';
 import { Direction, RuntimeEntity } from '../types/game';
@@ -172,7 +172,25 @@ export const GameBoard = ({ taxi, entities, rankZone, busStops, trees, roadOffse
 
       <View
         style={[
-          styles.rank,
+          styles.rankBuilding,
+          {
+            left: rankZone.x - rankZone.width / 2 - 8,
+            top: rankZone.y - rankZone.height / 2 - 30,
+            width: rankZone.width + 16,
+            height: rankZone.height + 36,
+          },
+        ]}
+      >
+        <View style={styles.rankRoof} />
+        <View style={styles.rankSign}>
+          <Text style={styles.rankSignText}>TAXI RANK</Text>
+        </View>
+        <View style={styles.rankDoor} />
+      </View>
+
+      <View
+        style={[
+          styles.rankZoneMarker,
           {
             left: rankZone.x - rankZone.width / 2,
             top: rankZone.y - rankZone.height / 2,
@@ -369,12 +387,61 @@ const styles = StyleSheet.create({
     borderRadius: 1,
     backgroundColor: '#6b4f2a',
   },
-  rank: {
+  rankBuilding: {
     position: 'absolute',
-    backgroundColor: 'rgba(240, 102, 49, 0.8)',
-    borderColor: '#ff9b57',
+    zIndex: 1,
+    borderRadius: 6,
     borderWidth: 2,
+    borderColor: '#475569',
+    backgroundColor: '#d6dde8',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    paddingBottom: 6,
+  },
+  rankRoof: {
+    position: 'absolute',
+    top: -6,
+    left: 3,
+    right: 3,
+    height: 8,
+    borderRadius: 3,
+    backgroundColor: '#94a3b8',
+    borderWidth: 1,
+    borderColor: '#64748b',
+  },
+  rankSign: {
+    position: 'absolute',
+    top: 7,
+    left: 4,
+    right: 4,
+    height: 10,
+    borderRadius: 2,
+    backgroundColor: '#facc15',
+    borderWidth: 1,
+    borderColor: '#ca8a04',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rankSignText: {
+    color: '#1f2937',
+    fontSize: 6,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  rankDoor: {
+    width: 8,
+    height: 10,
+    borderRadius: 2,
+    backgroundColor: '#64748b',
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  rankZoneMarker: {
+    position: 'absolute',
     borderRadius: 10,
+    borderWidth: 2,
+    borderColor: '#ff9b57',
+    backgroundColor: 'rgba(240, 102, 49, 0.3)',
   },
   taxi: {
     position: 'absolute',

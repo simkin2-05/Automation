@@ -15,7 +15,7 @@ import {
   TAXI_SIZE,
   TILE_SIZE,
 } from '../game/constants';
-import { clampToRoad, directionVector, intersects, taxiRuntimeStatsFromUpgrades, tileToWorld } from '../game/logic';
+import { clampToRoad, directionVector, intersects, taxiRuntimeStatsFromUpgrades } from '../game/logic';
 import { RootStackParamList } from './types';
 import { Direction, LevelResult, RuntimeEntity, TrafficColor } from '../types/game';
 
@@ -24,14 +24,38 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Game'>;
 const makeId = (prefix: string) => `${prefix}-${Math.random().toString(36).slice(2, 9)}`;
 const randomBetween = (min: number, max: number) => min + Math.random() * (max - min);
 const TRAFFIC_COLORS: TrafficColor[] = ['purple', 'yellow', 'red'];
+const SIDEWALK_INSET = 6;
+const SIDEWALK_OUTER = 28;
 
-const randomPassenger = (): RuntimeEntity => ({
-  id: makeId('passenger'),
-  kind: 'passenger',
-  ...tileToWorld(Math.floor(randomBetween(2, 10)), Math.floor(randomBetween(1, 17))),
-  width: 14,
-  height: 14,
+const busStops = [
+  { x: 18, y: BOARD_HEIGHT * 0.22, width: 24, height: 15 },
+  { x: BOARD_WIDTH - 18, y: BOARD_HEIGHT * 0.5, width: 24, height: 15 },
+  { x: 18, y: BOARD_HEIGHT * 0.78, width: 24, height: 15 },
+];
+
+const randomSidewalkPosition = () => ({
+  x:
+    Math.random() < 0.5
+      ? randomBetween(SIDEWALK_INSET, SIDEWALK_OUTER)
+      : randomBetween(BOARD_WIDTH - SIDEWALK_OUTER, BOARD_WIDTH - SIDEWALK_INSET),
+  y: randomBetween(16, BOARD_HEIGHT - 16),
 });
+
+const randomPassenger = (): RuntimeEntity => {
+  const stopSpawn = Math.random() < 0.6;
+  const anchor = stopSpawn
+    ? busStops[Math.floor(Math.random() * busStops.length)]
+    : randomSidewalkPosition();
+
+  return {
+    id: makeId('passenger'),
+    kind: 'passenger',
+    x: anchor.x + (stopSpawn ? randomBetween(-4, 4) : 0),
+    y: Math.max(14, Math.min(BOARD_HEIGHT - 14, anchor.y + (stopSpawn ? randomBetween(-10, 10) : 0))),
+    width: 14,
+    height: 14,
+  };
+};
 
 const spawnTraffic = (count: number, speedMultiplier: number): RuntimeEntity[] =>
   Array.from({ length: count }).map((_, index) => {
@@ -70,12 +94,6 @@ const rankZone = {
   width: 95,
   height: 28,
 };
-
-const busStops = [
-  { x: BOARD_WIDTH * 0.24, y: BOARD_HEIGHT * 0.25, width: 26, height: 16 },
-  { x: BOARD_WIDTH * 0.76, y: BOARD_HEIGHT * 0.62, width: 26, height: 16 },
-  { x: BOARD_WIDTH * 0.2, y: BOARD_HEIGHT * 0.82, width: 26, height: 16 },
-];
 
 const trees = Array.from({ length: 14 }).map((_, index) => {
   const onLeft = index % 2 === 0;
