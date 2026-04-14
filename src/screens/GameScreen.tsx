@@ -1,12 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  PanResponder,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { GameBoard } from '../components/GameBoard';
 import { Hud } from '../components/Hud';
@@ -23,13 +17,13 @@ import {
 } from '../game/constants';
 import { clampToRoad, directionVector, intersects, taxiRuntimeStatsFromUpgrades, tileToWorld } from '../game/logic';
 import { RootStackParamList } from './types';
-import { Direction, LevelResult, RuntimeEntity } from '../types/game';
+import { Direction, LevelResult, RuntimeEntity, TrafficColor } from '../types/game';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Game'>;
 
 const makeId = (prefix: string) => `${prefix}-${Math.random().toString(36).slice(2, 9)}`;
-
 const randomBetween = (min: number, max: number) => min + Math.random() * (max - min);
+const TRAFFIC_COLORS: TrafficColor[] = ['purple', 'yellow', 'red'];
 
 const randomPassenger = (): RuntimeEntity => ({
   id: makeId('passenger'),
@@ -52,6 +46,7 @@ const spawnTraffic = (count: number, speedMultiplier: number): RuntimeEntity[] =
       height: NPC_SIZE,
       direction,
       speed: (38 + index * 2) * speedMultiplier,
+      trafficColor: TRAFFIC_COLORS[Math.floor(Math.random() * TRAFFIC_COLORS.length)],
     };
   });
 
@@ -76,6 +71,21 @@ const rankZone = {
   height: 28,
 };
 
+const busStops = [
+  { x: BOARD_WIDTH * 0.24, y: BOARD_HEIGHT * 0.25, width: 26, height: 16 },
+  { x: BOARD_WIDTH * 0.76, y: BOARD_HEIGHT * 0.62, width: 26, height: 16 },
+  { x: BOARD_WIDTH * 0.2, y: BOARD_HEIGHT * 0.82, width: 26, height: 16 },
+];
+
+const trees = Array.from({ length: 14 }).map((_, index) => {
+  const onLeft = index % 2 === 0;
+  return {
+    x: onLeft ? randomBetween(8, 35) : randomBetween(BOARD_WIDTH - 35, BOARD_WIDTH - 8),
+    y: randomBetween(10, BOARD_HEIGHT - 10),
+    size: randomBetween(9, 14),
+  };
+});
+
 export const GameScreen = ({ navigation, route }: Props) => {
   const { state, dispatch } = useGame();
   const level = useMemo(
@@ -95,6 +105,8 @@ export const GameScreen = ({ navigation, route }: Props) => {
   ]);
   const [flashDirection, setFlashDirection] = useState<'left' | 'right' | null>(null);
   const [wanted, setWanted] = useState(false);
+  const [moveDirection, setMoveDirection] = useState<Direction>(0);
+  const [roadOffset, setRoadOffset] = useState({ x: 0, y: 0 });
 
   const brakeUntilRef = useRef<number>(0);
   const policeSpawnedRef = useRef(false);
@@ -109,14 +121,30 @@ export const GameScreen = ({ navigation, route }: Props) => {
     brakeUntilRef.current = performance.now() + 1000;
   };
 
-  const turnTaxi = (turn: 'left' | 'right') => {
+  const setTaxiDirection = (direction: Direction, flash?: 'left' | 'right') => {
     setTaxi((current) => ({
       ...current,
-      direction:
+      direction,
+    }));
+    setMoveDirection(direction);
+    if (flash) {
+      setFlashDirection(flash);
+      setTimeout(() => setFlashDirection(null), 300);
+    }
+  };
+
+  const turnTaxi = (turn: 'left' | 'right') => {
+    setTaxi((current) => {
+      const direction =
         turn === 'right'
           ? (((current.direction + 90) % 360) as Direction)
-          : (((current.direction + 270) % 360) as Direction),
-    }));
+          : (((current.direction + 270) % 360) as Direction);
+      setMoveDirection(direction);
+      return {
+        ...current,
+        direction,
+      };
+    });
     setFlashDirection(turn);
     setTimeout(() => setFlashDirection(null), 300);
   };
@@ -157,7 +185,12 @@ export const GameScreen = ({ navigation, route }: Props) => {
 
       const braking = timestamp < brakeUntilRef.current;
       const taxiSpeed = stats.taxiSpeed * (braking ? stats.brakeMultiplier : 1);
-      const vector = directionVector(taxi.direction);
+      const vector = directionVector(moveDirection);
+
+      setRoadOffset((current) => ({
+        x: current.x + vector.x * taxiSpeed * dt,
+        y: current.y + vector.y * taxiSpeed * dt,
+      }));
 
       setTaxi((current) => {
         const nextX = current.x + vector.x * taxiSpeed * dt;
@@ -235,7 +268,6 @@ export const GameScreen = ({ navigation, route }: Props) => {
           return entity;
         });
 
-        // Remove boarded passengers
         const filtered = next.filter((entity) => {
           if (entity.kind !== 'passenger') {
             return true;
@@ -249,7 +281,6 @@ export const GameScreen = ({ navigation, route }: Props) => {
           return true;
         });
 
-        // Random passenger spawn timer
         randomSpawnAccumulatorRef.current += dt;
         if (randomSpawnAccumulatorRef.current >= level.randomSpawnInterval) {
           randomSpawnAccumulatorRef.current = 0;
@@ -262,7 +293,6 @@ export const GameScreen = ({ navigation, route }: Props) => {
         return filtered;
       });
 
-      // Deliver passengers at rank
       if (
         passengersOnBoard > 0 &&
         intersects(
@@ -274,13 +304,11 @@ export const GameScreen = ({ navigation, route }: Props) => {
         setPassengersOnBoard(0);
       }
 
-      // Spawn police after configured delay
       if (!policeSpawnedRef.current && level.timeLimit - timeRemaining >= level.policeSpawnDelay) {
         policeSpawnedRef.current = true;
         setEntities((current) => [...current, ...spawnPolice(level.policeCount, level.policeSpeedMultiplier)]);
       }
 
-      // Taxi collisions with traffic/police
       const taxiBox = { x: taxi.x, y: taxi.y, width: TAXI_SIZE, height: TAXI_SIZE };
       const collision = entities.find(
         (entity) =>
@@ -323,7 +351,7 @@ export const GameScreen = ({ navigation, route }: Props) => {
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [taxi.direction, passengersOnBoard, deliveredPassengers, timeRemaining, entities, stats]);
+  }, [passengersOnBoard, deliveredPassengers, timeRemaining, entities, stats, moveDirection, taxi.x, taxi.y]);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -333,10 +361,16 @@ export const GameScreen = ({ navigation, route }: Props) => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.code === 'ArrowLeft') {
         event.preventDefault();
-        turnTaxi('left');
+        setTaxiDirection(270, 'left');
       } else if (event.code === 'ArrowRight') {
         event.preventDefault();
-        turnTaxi('right');
+        setTaxiDirection(90, 'right');
+      } else if (event.code === 'ArrowUp') {
+        event.preventDefault();
+        setTaxiDirection(0);
+      } else if (event.code === 'ArrowDown') {
+        event.preventDefault();
+        setTaxiDirection(180);
       } else if (event.code === 'Space') {
         event.preventDefault();
         triggerBrake();
@@ -377,16 +411,20 @@ export const GameScreen = ({ navigation, route }: Props) => {
         wanted={wanted}
       />
 
-      <Pressable
-        onPress={triggerBrake}
-        style={styles.boardWrap}
-        {...panResponder.panHandlers}
-      >
-        <GameBoard taxi={taxi} entities={entities} rankZone={rankZone} flashDirection={flashDirection} />
+      <Pressable onPress={triggerBrake} style={styles.boardWrap} {...panResponder.panHandlers}>
+        <GameBoard
+          taxi={taxi}
+          entities={entities}
+          rankZone={rankZone}
+          busStops={busStops}
+          trees={trees}
+          roadOffset={roadOffset}
+          flashDirection={flashDirection}
+        />
       </Pressable>
 
       <View style={styles.footer}>
-        <Text style={styles.helper}>Swipe or Arrow keys to steer • Tap or Space to brake</Text>
+        <Text style={styles.helper}>Arrow keys: Up/Down/Left/Right to move • Space or Tap to brake</Text>
         <Pressable style={styles.menuButton} onPress={() => navigation.navigate('Home')}>
           <Text style={styles.menuButtonText}>Exit</Text>
         </Pressable>
