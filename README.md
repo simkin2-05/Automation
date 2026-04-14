@@ -35,6 +35,14 @@ If `expo` is not recognized on Windows, use:
 npx expo start
 ```
 
+If your local Git installation is missing or broken and EAS build fails with a VCS error, run:
+
+```bash
+npm run build:andriod:apk
+```
+
+This script sets `EAS_NO_VCS=1` automatically.
+
 ## Downloadable SDK package
 
 Create a distributable SDK zip of this project:
