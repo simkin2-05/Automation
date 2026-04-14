@@ -10,7 +10,13 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Results'>;
 export const ResultsScreen = ({ navigation, route }: Props) => {
   const { result } = route.params;
   const level = LEVELS.find((item) => item.id === result.levelId);
-  const title = result.won ? 'Route Complete!' : result.reason === 'busted' ? 'BUSTED' : 'TIME UP';
+  const title = result.won
+    ? 'Route Complete!'
+    : result.reason === 'busted'
+      ? 'BUSTED'
+      : result.reason === 'crashed'
+        ? 'CRASHED'
+        : 'TIME UP';
   const subtitle = level ? `${level.city} • ${level.difficulty}` : result.levelId;
 
   return (

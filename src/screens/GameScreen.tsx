@@ -373,7 +373,15 @@ export const GameScreen = ({ navigation, route }: Props) => {
           intersects(taxiBox, { x: entity.x, y: entity.y, width: entity.width, height: entity.height }),
       );
       if (collision) {
+        velocityRef.current = { x: 0, y: 0 };
+        keyInputRef.current = { up: false, down: false, left: false, right: false };
+        keyboardModeRef.current = false;
+        setMoveDirection(taxi.direction);
         brakeUntilRef.current = timestamp + 1500;
+        if (collision.kind === 'traffic') {
+          finishLevel(false, 'crashed', timeRemaining);
+          return;
+        }
         if (collision.kind === 'police') {
           finishLevel(false, 'busted', timeRemaining);
           return;

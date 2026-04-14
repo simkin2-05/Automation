@@ -78,7 +78,7 @@ export interface RuntimeEntity {
 export interface LevelResult {
   levelId: string;
   won: boolean;
-  reason: 'completed' | 'time-up' | 'busted';
+  reason: 'completed' | 'time-up' | 'busted' | 'crashed';
   deliveredPassengers: number;
   moneyEarned: number;
   timeRemaining: number;
