@@ -41,7 +41,8 @@ If your local Git installation is missing or broken and EAS build fails with a V
 npm run build:andriod:apk
 ```
 
-This script sets `EAS_NO_VCS=1` automatically.
+This command is cross-platform and works in PowerShell, CMD, macOS, and Linux.
+It uses a Node wrapper script that sets `EAS_NO_VCS=1` automatically.
 
 ## Downloadable SDK package
 
