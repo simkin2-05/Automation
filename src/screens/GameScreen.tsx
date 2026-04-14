@@ -127,6 +127,9 @@ export const GameScreen = ({ navigation, route }: Props) => {
   const [roadOffset, setRoadOffset] = useState({ x: 0, y: 0 });
 
   const brakeUntilRef = useRef<number>(0);
+  const velocityRef = useRef({ x: 0, y: 0 });
+  const keyInputRef = useRef({ up: false, down: false, left: false, right: false });
+  const keyboardModeRef = useRef(false);
   const policeSpawnedRef = useRef(false);
   const lostWantedAtRef = useRef<number | null>(null);
   const endedRef = useRef(false);
@@ -139,18 +142,6 @@ export const GameScreen = ({ navigation, route }: Props) => {
     brakeUntilRef.current = performance.now() + 1000;
   };
 
-  const setTaxiDirection = (direction: Direction, flash?: 'left' | 'right') => {
-    setTaxi((current) => ({
-      ...current,
-      direction,
-    }));
-    setMoveDirection(direction);
-    if (flash) {
-      setFlashDirection(flash);
-      setTimeout(() => setFlashDirection(null), 300);
-    }
-  };
-
   const turnTaxi = (turn: 'left' | 'right') => {
     setTaxi((current) => {
       const direction =
@@ -158,6 +149,13 @@ export const GameScreen = ({ navigation, route }: Props) => {
           ? (((current.direction + 90) % 360) as Direction)
           : (((current.direction + 270) % 360) as Direction);
       setMoveDirection(direction);
+      keyboardModeRef.current = false;
+      const carrySpeed = Math.hypot(velocityRef.current.x, velocityRef.current.y);
+      const nextVector = directionVector(direction);
+      velocityRef.current = {
+        x: nextVector.x * carrySpeed,
+        y: nextVector.y * carrySpeed,
+      };
       return {
         ...current,
         direction,
@@ -202,20 +200,57 @@ export const GameScreen = ({ navigation, route }: Props) => {
       previousFrameRef.current = timestamp;
 
       const braking = timestamp < brakeUntilRef.current;
-      const taxiSpeed = stats.taxiSpeed * (braking ? stats.brakeMultiplier : 1);
-      const vector = directionVector(moveDirection);
+      const keyInput = keyInputRef.current;
+      const keyX = (keyInput.right ? 1 : 0) - (keyInput.left ? 1 : 0);
+      const keyY = (keyInput.down ? 1 : 0) - (keyInput.up ? 1 : 0);
+      const hasKeyboardInput = keyX !== 0 || keyY !== 0;
+
+      let targetX = 0;
+      let targetY = 0;
+      if (hasKeyboardInput) {
+        keyboardModeRef.current = true;
+        const magnitude = Math.hypot(keyX, keyY) || 1;
+        targetX = (keyX / magnitude) * stats.taxiSpeed;
+        targetY = (keyY / magnitude) * stats.taxiSpeed;
+      } else if (!keyboardModeRef.current) {
+        const vector = directionVector(moveDirection);
+        targetX = vector.x * stats.taxiSpeed;
+        targetY = vector.y * stats.taxiSpeed;
+      }
+
+      const speedFactor = braking ? stats.brakeMultiplier : 1;
+      targetX *= speedFactor;
+      targetY *= speedFactor;
+
+      const smoothingRate = braking ? 14 : hasKeyboardInput ? 12 : 8;
+      const blend = Math.min(1, dt * smoothingRate);
+      velocityRef.current.x += (targetX - velocityRef.current.x) * blend;
+      velocityRef.current.y += (targetY - velocityRef.current.y) * blend;
+      if (!hasKeyboardInput && keyboardModeRef.current && Math.hypot(velocityRef.current.x, velocityRef.current.y) < 2) {
+        velocityRef.current = { x: 0, y: 0 };
+      }
+      const currentSpeed = Math.hypot(velocityRef.current.x, velocityRef.current.y);
 
       setRoadOffset((current) => ({
-        x: current.x + vector.x * taxiSpeed * dt,
-        y: current.y + vector.y * taxiSpeed * dt,
+        x: current.x + velocityRef.current.x * dt,
+        y: current.y + velocityRef.current.y * dt,
       }));
 
       setTaxi((current) => {
-        const nextX = current.x + vector.x * taxiSpeed * dt;
-        const nextY = current.y + vector.y * taxiSpeed * dt;
+        const nextX = current.x + velocityRef.current.x * dt;
+        const nextY = current.y + velocityRef.current.y * dt;
+        let direction = current.direction;
+        if (currentSpeed > 4) {
+          if (Math.abs(velocityRef.current.x) > Math.abs(velocityRef.current.y)) {
+            direction = velocityRef.current.x >= 0 ? 90 : 270;
+          } else {
+            direction = velocityRef.current.y >= 0 ? 180 : 0;
+          }
+        }
         return {
           ...current,
           ...clampToRoad(nextX, nextY, TAXI_SIZE / 2),
+          direction,
         };
       });
 
@@ -292,7 +327,11 @@ export const GameScreen = ({ navigation, route }: Props) => {
           }
 
           const distance = Math.hypot(taxi.x - entity.x, taxi.y - entity.y);
-          if (distance <= PICKUP_RADIUS && passengersOnBoard < MAX_TAXI_CAPACITY && taxiSpeed < stats.taxiSpeed * 0.85) {
+          if (
+            distance <= PICKUP_RADIUS &&
+            passengersOnBoard < MAX_TAXI_CAPACITY &&
+            currentSpeed < stats.taxiSpeed * 0.85
+          ) {
             setPassengersOnBoard((currentCount) => Math.min(MAX_TAXI_CAPACITY, currentCount + 1));
             return false;
           }
@@ -376,28 +415,55 @@ export const GameScreen = ({ navigation, route }: Props) => {
       return;
     }
 
+    const setKeyState = (code: string, isPressed: boolean) => {
+      if (code === 'ArrowUp') {
+        keyInputRef.current.up = isPressed;
+      } else if (code === 'ArrowDown') {
+        keyInputRef.current.down = isPressed;
+      } else if (code === 'ArrowLeft') {
+        keyInputRef.current.left = isPressed;
+      } else if (code === 'ArrowRight') {
+        keyInputRef.current.right = isPressed;
+      }
+    };
+
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.code === 'ArrowLeft') {
+      if (
+        event.code === 'ArrowUp' ||
+        event.code === 'ArrowDown' ||
+        event.code === 'ArrowLeft' ||
+        event.code === 'ArrowRight'
+      ) {
         event.preventDefault();
-        setTaxiDirection(270, 'left');
-      } else if (event.code === 'ArrowRight') {
-        event.preventDefault();
-        setTaxiDirection(90, 'right');
-      } else if (event.code === 'ArrowUp') {
-        event.preventDefault();
-        setTaxiDirection(0);
-      } else if (event.code === 'ArrowDown') {
-        event.preventDefault();
-        setTaxiDirection(180);
+        setKeyState(event.code, true);
+        if (event.code === 'ArrowLeft') {
+          setFlashDirection('left');
+          setTimeout(() => setFlashDirection(null), 180);
+        } else if (event.code === 'ArrowRight') {
+          setFlashDirection('right');
+          setTimeout(() => setFlashDirection(null), 180);
+        }
       } else if (event.code === 'Space') {
         event.preventDefault();
         triggerBrake();
       }
     };
 
+    const onKeyUp = (event: KeyboardEvent) => {
+      setKeyState(event.code, false);
+    };
+
+    const clearKeyboardInput = () => {
+      keyInputRef.current = { up: false, down: false, left: false, right: false };
+    };
+
     window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+    window.addEventListener('blur', clearKeyboardInput);
     return () => {
       window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup', onKeyUp);
+      window.removeEventListener('blur', clearKeyboardInput);
     };
   }, []);
 
@@ -442,7 +508,7 @@ export const GameScreen = ({ navigation, route }: Props) => {
       </Pressable>
 
       <View style={styles.footer}>
-        <Text style={styles.helper}>Arrow keys: Up/Down/Left/Right to move • Space or Tap to brake</Text>
+        <Text style={styles.helper}>Hold arrow keys for smooth movement • Space or Tap to brake</Text>
         <Pressable style={styles.menuButton} onPress={() => navigation.navigate('Home')}>
           <Text style={styles.menuButtonText}>Exit</Text>
         </Pressable>
