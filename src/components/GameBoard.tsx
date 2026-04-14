@@ -22,6 +22,11 @@ const taxiRotation = (direction: Direction) => `${direction}deg`;
 
 const mod = (value: number, divisor: number) => ((value % divisor) + divisor) % divisor;
 
+const randomBubbleCycle = () => ({
+  nextAt: Date.now() + 500 + Math.random() * 2600,
+  hideAt: 0,
+});
+
 const PassengerSprite = () => (
   <View style={styles.passengerSprite}>
     <View style={styles.passengerHat} />
@@ -67,6 +72,46 @@ const TreeSprite = ({ size }: { size: number }) => (
 );
 
 export const GameBoard = ({ taxi, entities, rankZone, busStops, trees, roadOffset, flashDirection }: Props) => {
+  const bubbleStateRef = React.useRef<Record<string, { nextAt: number; hideAt: number }>>({});
+  const [bubbleTick, setBubbleTick] = React.useState(0);
+
+  React.useEffect(() => {
+    const interval = setInterval(() => setBubbleTick((current) => current + 1), 220);
+    return () => clearInterval(interval);
+  }, []);
+
+  const bubbleVisibility = React.useMemo(() => {
+    const now = Date.now();
+    const visible: Record<string, boolean> = {};
+    const passengerIds = new Set(entities.filter((entity) => entity.kind === 'passenger').map((entity) => entity.id));
+
+    Object.keys(bubbleStateRef.current).forEach((id) => {
+      if (!passengerIds.has(id)) {
+        delete bubbleStateRef.current[id];
+      }
+    });
+
+    entities.forEach((entity) => {
+      if (entity.kind !== 'passenger') {
+        return;
+      }
+
+      if (!bubbleStateRef.current[entity.id]) {
+        bubbleStateRef.current[entity.id] = randomBubbleCycle();
+      }
+
+      const state = bubbleStateRef.current[entity.id];
+      if (now >= state.nextAt && now > state.hideAt) {
+        state.hideAt = now + 550 + Math.random() * 700;
+        state.nextAt = state.hideAt + 900 + Math.random() * 3200;
+      }
+      visible[entity.id] = now < state.hideAt;
+    });
+
+    return visible;
+    // bubbleTick keeps random pop/disappear cycles moving
+  }, [entities, bubbleTick]);
+
   const verticalDashes = React.useMemo(() => {
     const spacing = 34;
     const length = 16;
@@ -214,7 +259,17 @@ export const GameBoard = ({ taxi, entities, rankZone, busStops, trees, roadOffse
             },
           ]}
         >
-          {entity.kind === 'passenger' ? <PassengerSprite /> : null}
+          {entity.kind === 'passenger' ? (
+            <View style={styles.passengerWrap}>
+              {bubbleVisibility[entity.id] ? (
+                <View style={styles.speechBubble}>
+                  <Text style={styles.speechText}>Taxi!</Text>
+                  <View style={styles.speechTail} />
+                </View>
+              ) : null}
+              <PassengerSprite />
+            </View>
+          ) : null}
           {entity.kind === 'traffic' ? (
             <TaxiSprite
               color={
@@ -452,6 +507,43 @@ const styles = StyleSheet.create({
     position: 'absolute',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  passengerWrap: {
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    width: '100%',
+    height: '100%',
+  },
+  speechBubble: {
+    position: 'absolute',
+    bottom: 16,
+    backgroundColor: '#ffffff',
+    borderColor: '#1f2937',
+    borderWidth: 1,
+    borderRadius: 6,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    zIndex: 5,
+  },
+  speechText: {
+    color: '#111827',
+    fontSize: 7,
+    fontWeight: '800',
+    lineHeight: 9,
+  },
+  speechTail: {
+    position: 'absolute',
+    left: '50%',
+    marginLeft: -3,
+    bottom: -4,
+    width: 0,
+    height: 0,
+    borderLeftWidth: 3,
+    borderRightWidth: 3,
+    borderTopWidth: 4,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderTopColor: '#ffffff',
   },
   passengerSprite: {
     width: '100%',
