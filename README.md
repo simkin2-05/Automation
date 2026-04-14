@@ -35,6 +35,19 @@ If `expo` is not recognized on Windows, use:
 npx expo start
 ```
 
+## Downloadable SDK package
+
+Create a distributable SDK zip of this project:
+
+```bash
+npm run package:sdk
+```
+
+Output archives are written to:
+
+- `dist-sdk/taxi-rush-sdk-latest.zip`
+- `dist-sdk/taxi-rush-sdk-<timestamp>.zip`
+
 ## Notes
 
 This is an MVP implementation focused on gameplay mechanics and progression systems from the PRD. Production art assets, advanced pathfinding, audio/haptics integration, and platform release setup can be layered on next.
