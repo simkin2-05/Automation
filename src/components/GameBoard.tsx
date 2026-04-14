@@ -21,9 +21,12 @@ interface Props {
 const taxiRotation = (direction: Direction) => `${direction}deg`;
 
 const mod = (value: number, divisor: number) => ((value % divisor) + divisor) % divisor;
+const hashSeed = (value: string) =>
+  value.split('').reduce((total, char, index) => total + char.charCodeAt(0) * (index + 3), 0);
 
 const randomBubbleCycle = () => ({
   nextAt: Date.now() + 500 + Math.random() * 2600,
+  showAt: 0,
   hideAt: 0,
 });
 
@@ -39,8 +42,16 @@ const PassengerSprite = () => (
   </View>
 );
 
-const TaxiSprite = ({ color = '#39a953' }: { color?: string }) => (
-  <View style={[styles.taxiSprite, { backgroundColor: color }]}> 
+const TaxiSprite = ({
+  color = '#39a953',
+  bodyBounce = 0,
+  wheelStretch = 1,
+}: {
+  color?: string;
+  bodyBounce?: number;
+  wheelStretch?: number;
+}) => (
+  <View style={[styles.taxiSprite, { backgroundColor: color, transform: [{ translateY: bodyBounce }] }]}>
     <View style={styles.taxiRoof} />
     <View style={styles.taxiWindowsRow}>
       <View style={styles.taxiWindowLarge} />
@@ -48,17 +59,17 @@ const TaxiSprite = ({ color = '#39a953' }: { color?: string }) => (
       <View style={styles.taxiWindow} />
     </View>
     <View style={styles.taxiBumper} />
-    <View style={[styles.taxiWheel, styles.taxiWheelFront]} />
-    <View style={[styles.taxiWheel, styles.taxiWheelRear]} />
+    <View style={[styles.taxiWheel, styles.taxiWheelFront, { transform: [{ scaleY: wheelStretch }] }]} />
+    <View style={[styles.taxiWheel, styles.taxiWheelRear, { transform: [{ scaleY: wheelStretch }] }]} />
   </View>
 );
 
-const PoliceSprite = () => (
+const PoliceSprite = ({ flashBlue }: { flashBlue: boolean }) => (
   <View style={styles.policeSprite}>
     <View style={styles.policeCabin} />
     <View style={styles.policeStripeBlue} />
     <View style={styles.policeStripeGold} />
-    <View style={styles.policeLightBar} />
+    <View style={[styles.policeLightBar, flashBlue ? styles.policeLightBlue : styles.policeLightRed]} />
     <View style={[styles.taxiWheel, styles.taxiWheelFront]} />
     <View style={[styles.taxiWheel, styles.taxiWheelRear]} />
   </View>
@@ -111,6 +122,8 @@ export const GameBoard = ({ taxi, entities, rankZone, busStops, trees, roadOffse
     return visible;
     // bubbleTick keeps random pop/disappear cycles moving
   }, [entities, bubbleTick]);
+
+  const policeFlashBlue = bubbleTick % 4 < 2;
 
   const verticalDashes = React.useMemo(() => {
     const spacing = 34;
@@ -281,7 +294,7 @@ export const GameBoard = ({ taxi, entities, rankZone, busStops, trees, roadOffse
               }
             />
           ) : null}
-          {entity.kind === 'police' ? <PoliceSprite /> : null}
+          {entity.kind === 'police' ? <PoliceSprite flashBlue={policeFlashBlue} /> : null}
         </View>
       ))}
 
@@ -683,6 +696,12 @@ const styles = StyleSheet.create({
     height: 2,
     borderRadius: 2,
     backgroundColor: '#4e73df',
+  },
+  policeLightBlue: {
+    backgroundColor: '#3b82f6',
+  },
+  policeLightRed: {
+    backgroundColor: '#ef4444',
   },
   flashArrow: {
     position: 'absolute',
