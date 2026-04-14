@@ -106,6 +106,7 @@ export const GameScreen = ({ navigation, route }: Props) => {
   const [flashDirection, setFlashDirection] = useState<'left' | 'right' | null>(null);
   const [wanted, setWanted] = useState(false);
   const [moveDirection, setMoveDirection] = useState<Direction>(0);
+  const [roadOffset, setRoadOffset] = useState({ x: 0, y: 0 });
 
   const brakeUntilRef = useRef<number>(0);
   const policeSpawnedRef = useRef(false);
@@ -185,6 +186,11 @@ export const GameScreen = ({ navigation, route }: Props) => {
       const braking = timestamp < brakeUntilRef.current;
       const taxiSpeed = stats.taxiSpeed * (braking ? stats.brakeMultiplier : 1);
       const vector = directionVector(moveDirection);
+
+      setRoadOffset((current) => ({
+        x: current.x + vector.x * taxiSpeed * dt,
+        y: current.y + vector.y * taxiSpeed * dt,
+      }));
 
       setTaxi((current) => {
         const nextX = current.x + vector.x * taxiSpeed * dt;
@@ -412,6 +418,7 @@ export const GameScreen = ({ navigation, route }: Props) => {
           rankZone={rankZone}
           busStops={busStops}
           trees={trees}
+          roadOffset={roadOffset}
           flashDirection={flashDirection}
         />
       </Pressable>

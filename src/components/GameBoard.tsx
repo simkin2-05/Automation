@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { BOARD_COLS, BOARD_ROWS, BOARD_WIDTH, TILE_SIZE } from '../game/constants';
+import { BOARD_HEIGHT, BOARD_WIDTH } from '../game/constants';
 import { Direction, RuntimeEntity } from '../types/game';
 
 interface Props {
@@ -14,10 +14,13 @@ interface Props {
   rankZone: { x: number; y: number; width: number; height: number };
   busStops: Array<{ x: number; y: number; width: number; height: number }>;
   trees: Array<{ x: number; y: number; size: number }>;
+  roadOffset: { x: number; y: number };
   flashDirection: 'left' | 'right' | null;
 }
 
 const taxiRotation = (direction: Direction) => `${direction}deg`;
+
+const mod = (value: number, divisor: number) => ((value % divisor) + divisor) % divisor;
 
 const PassengerSprite = () => (
   <View style={styles.passengerSprite}>
@@ -32,7 +35,7 @@ const PassengerSprite = () => (
 );
 
 const TaxiSprite = ({ color = '#39a953' }: { color?: string }) => (
-  <View style={[styles.taxiSprite, { backgroundColor: color }]}>
+  <View style={[styles.taxiSprite, { backgroundColor: color }]}> 
     <View style={styles.taxiRoof} />
     <View style={styles.taxiWindowsRow}>
       <View style={styles.taxiWindowLarge} />
@@ -63,38 +66,76 @@ const TreeSprite = ({ size }: { size: number }) => (
   </View>
 );
 
-export const GameBoard = ({ taxi, entities, rankZone, busStops, trees, flashDirection }: Props) => {
-  const tiles = React.useMemo(
-    () =>
-      Array.from({ length: BOARD_ROWS }).flatMap((_, row) =>
-        Array.from({ length: BOARD_COLS }).map((__, col) => {
-          const index = `${row}-${col}`;
-          const isRoad = true;
-          const isCenterDivider = col === Math.floor(BOARD_COLS / 2) && row % 2 === 0;
-          const isShoulder = col <= 1 || col >= BOARD_COLS - 2;
-          return (
-            <View
-              key={index}
-              style={[
-                styles.tile,
-                {
-                  left: col * TILE_SIZE,
-                  top: row * TILE_SIZE,
-                  backgroundColor: isRoad ? '#444f5d' : '#444f5d',
-                },
-                isShoulder && styles.roadShoulder,
-                isCenterDivider && styles.divider,
-              ]}
-            />
-          );
-        }),
-      ),
-    [],
-  );
+export const GameBoard = ({ taxi, entities, rankZone, busStops, trees, roadOffset, flashDirection }: Props) => {
+  const verticalDashes = React.useMemo(() => {
+    const spacing = 34;
+    const length = 16;
+    const count = Math.ceil(BOARD_HEIGHT / spacing) + 2;
+    const start = mod(roadOffset.y, spacing);
+
+    return Array.from({ length: count }).map((_, index) => ({
+      top: index * spacing - start - length,
+      length,
+    }));
+  }, [roadOffset.y]);
+
+  const sideDashes = React.useMemo(() => {
+    const spacing = 44;
+    const length = 14;
+    const count = Math.ceil(BOARD_HEIGHT / spacing) + 2;
+    const start = mod(roadOffset.y * 0.85, spacing);
+
+    return Array.from({ length: count }).map((_, index) => ({
+      top: index * spacing - start - length,
+      length,
+    }));
+  }, [roadOffset.y]);
+
+  const roadTextureBands = React.useMemo(() => {
+    const spacing = 52;
+    const count = Math.ceil(BOARD_WIDTH / spacing) + 2;
+    const start = mod(roadOffset.x, spacing);
+
+    return Array.from({ length: count }).map((_, index) => ({
+      left: index * spacing - start - spacing,
+      width: spacing * 0.5,
+    }));
+  }, [roadOffset.x]);
 
   return (
     <View style={styles.board}>
-      {tiles}
+      <View style={styles.grassLayer} />
+
+      <View style={styles.roadBody}>
+        {roadTextureBands.map((band, index) => (
+          <View
+            key={`band-${index}`}
+            style={[styles.roadTextureBand, { left: band.left, width: band.width }]}
+          />
+        ))}
+      </View>
+
+      <View style={styles.leftShoulder} />
+      <View style={styles.rightShoulder} />
+
+      <View style={styles.centerLaneLine}>
+        {verticalDashes.map((dash, index) => (
+          <View key={`center-dash-${index}`} style={[styles.centerDash, { top: dash.top, height: dash.length }]} />
+        ))}
+      </View>
+
+      <View style={styles.leftLaneLine}>
+        {sideDashes.map((dash, index) => (
+          <View key={`left-dash-${index}`} style={[styles.sideDash, { top: dash.top, height: dash.length }]} />
+        ))}
+      </View>
+
+      <View style={styles.rightLaneLine}>
+        {sideDashes.map((dash, index) => (
+          <View key={`right-dash-${index}`} style={[styles.sideDash, { top: dash.top, height: dash.length }]} />
+        ))}
+      </View>
+
       {trees.map((tree, index) => (
         <View
           key={`tree-${index}`}
@@ -125,6 +166,7 @@ export const GameBoard = ({ taxi, entities, rankZone, busStops, trees, flashDire
         >
           <View style={styles.busStopSignPost} />
           <View style={styles.busStopSignBoard} />
+          <View style={styles.busStopBench} />
         </View>
       ))}
 
@@ -193,29 +235,82 @@ export const GameBoard = ({ taxi, entities, rankZone, busStops, trees, flashDire
 const styles = StyleSheet.create({
   board: {
     width: BOARD_WIDTH,
-    height: BOARD_ROWS * TILE_SIZE,
+    height: BOARD_HEIGHT,
     borderRadius: 12,
     overflow: 'hidden',
-    backgroundColor: '#444f5d',
+    backgroundColor: '#567858',
     position: 'relative',
     borderWidth: 2,
     borderColor: '#1d2433',
   },
-  tile: {
+  grassLayer: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#5f8a62',
+  },
+  roadBody: {
     position: 'absolute',
-    width: TILE_SIZE,
-    height: TILE_SIZE,
+    left: 32,
+    right: 32,
+    top: 0,
+    bottom: 0,
+    backgroundColor: '#3f4a57',
   },
-  divider: {
-    backgroundColor: '#f6d365',
-    width: TILE_SIZE * 0.25,
-    left: BOARD_WIDTH / 2 - TILE_SIZE * 0.12,
+  roadTextureBand: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+  },
+  leftShoulder: {
+    position: 'absolute',
+    left: 32,
+    top: 0,
+    bottom: 0,
+    width: 9,
+    backgroundColor: '#7e6f4f',
+  },
+  rightShoulder: {
+    position: 'absolute',
+    right: 32,
+    top: 0,
+    bottom: 0,
+    width: 9,
+    backgroundColor: '#7e6f4f',
+  },
+  centerLaneLine: {
+    position: 'absolute',
+    left: BOARD_WIDTH / 2 - 2,
+    top: 0,
+    bottom: 0,
+    width: 4,
+  },
+  centerDash: {
+    position: 'absolute',
+    left: 0,
+    width: 4,
     borderRadius: 2,
-    height: TILE_SIZE * 0.5,
-    top: TILE_SIZE * 0.25,
+    backgroundColor: '#f6d365',
   },
-  roadShoulder: {
-    backgroundColor: '#697b67',
+  leftLaneLine: {
+    position: 'absolute',
+    left: BOARD_WIDTH / 2 - 40,
+    top: 0,
+    bottom: 0,
+    width: 2,
+  },
+  rightLaneLine: {
+    position: 'absolute',
+    left: BOARD_WIDTH / 2 + 38,
+    top: 0,
+    bottom: 0,
+    width: 2,
+  },
+  sideDash: {
+    position: 'absolute',
+    left: 0,
+    width: 2,
+    borderRadius: 1,
+    backgroundColor: 'rgba(255,255,255,0.45)',
   },
   tree: {
     position: 'absolute',
@@ -265,9 +360,18 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#d97706',
   },
+  busStopBench: {
+    position: 'absolute',
+    left: 2,
+    bottom: 2,
+    width: 9,
+    height: 2,
+    borderRadius: 1,
+    backgroundColor: '#6b4f2a',
+  },
   rank: {
     position: 'absolute',
-    backgroundColor: 'rgba(240, 102, 49, 0.7)',
+    backgroundColor: 'rgba(240, 102, 49, 0.8)',
     borderColor: '#ff9b57',
     borderWidth: 2,
     borderRadius: 10,
@@ -328,7 +432,6 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     borderWidth: 1.5,
     borderColor: '#233127',
-    backgroundColor: '#39a953',
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
