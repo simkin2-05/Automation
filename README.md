@@ -43,6 +43,11 @@ npm run build:andriod:apk
 
 This command is cross-platform and works in PowerShell, CMD, macOS, and Linux.
 It uses a Node wrapper script that sets `EAS_NO_VCS=1` automatically.
+You can append extra EAS flags through npm script arg passthrough, for example:
+
+```bash
+npm run build:andriod:apk -- --non-interactive
+```
 
 ## Downloadable SDK package
 
