@@ -17,6 +17,43 @@ interface Props {
 
 const taxiRotation = (direction: Direction) => `${direction}deg`;
 
+const PassengerSprite = () => (
+  <View style={styles.passengerSprite}>
+    <View style={styles.passengerHat} />
+    <View style={styles.passengerHead} />
+    <View style={styles.passengerBody} />
+    <View style={styles.passengerLegs}>
+      <View style={styles.passengerLeg} />
+      <View style={styles.passengerLeg} />
+    </View>
+  </View>
+);
+
+const TaxiSprite = () => (
+  <View style={styles.taxiSprite}>
+    <View style={styles.taxiRoof} />
+    <View style={styles.taxiWindowsRow}>
+      <View style={styles.taxiWindowLarge} />
+      <View style={styles.taxiWindow} />
+      <View style={styles.taxiWindow} />
+    </View>
+    <View style={styles.taxiBumper} />
+    <View style={[styles.taxiWheel, styles.taxiWheelFront]} />
+    <View style={[styles.taxiWheel, styles.taxiWheelRear]} />
+  </View>
+);
+
+const PoliceSprite = () => (
+  <View style={styles.policeSprite}>
+    <View style={styles.policeCabin} />
+    <View style={styles.policeStripeBlue} />
+    <View style={styles.policeStripeGold} />
+    <View style={styles.policeLightBar} />
+    <View style={[styles.taxiWheel, styles.taxiWheelFront]} />
+    <View style={[styles.taxiWheel, styles.taxiWheelRear]} />
+  </View>
+);
+
 export const GameBoard = ({ taxi, entities, rankZone, flashDirection }: Props) => {
   const tiles = React.useMemo(
     () =>
@@ -64,9 +101,6 @@ export const GameBoard = ({ taxi, entities, rankZone, flashDirection }: Props) =
           key={entity.id}
           style={[
             styles.entity,
-            entity.kind === 'passenger' && styles.passenger,
-            entity.kind === 'traffic' && styles.traffic,
-            entity.kind === 'police' && styles.police,
             {
               left: entity.x - entity.width / 2,
               top: entity.y - entity.height / 2,
@@ -75,19 +109,25 @@ export const GameBoard = ({ taxi, entities, rankZone, flashDirection }: Props) =
               transform: [{ rotate: `${entity.direction ?? 0}deg` }],
             },
           ]}
-        />
+        >
+          {entity.kind === 'passenger' ? <PassengerSprite /> : null}
+          {entity.kind === 'traffic' ? <TaxiSprite /> : null}
+          {entity.kind === 'police' ? <PoliceSprite /> : null}
+        </View>
       ))}
 
       <View
         style={[
           styles.taxi,
           {
-            left: taxi.x - 9,
-            top: taxi.y - 9,
+            left: taxi.x - 14,
+            top: taxi.y - 8,
             transform: [{ rotate: taxiRotation(taxi.direction) }],
           },
         ]}
-      />
+      >
+        <TaxiSprite />
+      </View>
 
       {flashDirection ? (
         <View style={[styles.flashArrow, flashDirection === 'left' ? styles.leftFlash : styles.rightFlash]} />
@@ -126,32 +166,153 @@ const styles = StyleSheet.create({
   },
   taxi: {
     position: 'absolute',
-    width: 18,
-    height: 18,
-    backgroundColor: '#ffd447',
-    borderWidth: 2,
-    borderColor: '#1d2433',
-    borderRadius: 4,
+    width: 28,
+    height: 16,
   },
   entity: {
     position: 'absolute',
-    borderRadius: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  passenger: {
-    backgroundColor: '#d9f99d',
-    borderColor: '#517b27',
-    borderWidth: 1,
-    borderRadius: 9,
+  passengerSprite: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    position: 'relative',
   },
-  traffic: {
-    backgroundColor: '#86b6ff',
-    borderColor: '#1a4c95',
-    borderWidth: 1,
+  passengerHat: {
+    position: 'absolute',
+    top: 0,
+    width: 8,
+    height: 2,
+    borderRadius: 2,
+    backgroundColor: '#d62828',
   },
-  police: {
-    backgroundColor: '#ff7b9c',
-    borderColor: '#7d1a3e',
-    borderWidth: 1,
+  passengerHead: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#f0d2b6',
+    marginBottom: 1,
+  },
+  passengerBody: {
+    width: 10,
+    height: 7,
+    borderRadius: 2,
+    backgroundColor: '#31a05f',
+    marginBottom: 1,
+  },
+  passengerLegs: {
+    width: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  passengerLeg: {
+    width: 3,
+    height: 3,
+    borderRadius: 1,
+    backgroundColor: '#2d6cdf',
+  },
+  taxiSprite: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: '#233127',
+    backgroundColor: '#39a953',
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+    overflow: 'visible',
+  },
+  taxiRoof: {
+    position: 'absolute',
+    top: 1,
+    width: '72%',
+    height: 4,
+    borderRadius: 3,
+    backgroundColor: '#4fc06b',
+  },
+  taxiWindowsRow: {
+    flexDirection: 'row',
+    gap: 1,
+  },
+  taxiWindowLarge: {
+    width: 8,
+    height: 4,
+    borderRadius: 1,
+    backgroundColor: '#2f5f7a',
+  },
+  taxiWindow: {
+    width: 5,
+    height: 4,
+    borderRadius: 1,
+    backgroundColor: '#2a5168',
+  },
+  taxiBumper: {
+    position: 'absolute',
+    bottom: 1,
+    width: '92%',
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: '#2d3436',
+  },
+  taxiWheel: {
+    position: 'absolute',
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#1b1b1b',
+  },
+  taxiWheelFront: {
+    right: -1,
+    bottom: 2,
+  },
+  taxiWheelRear: {
+    left: -1,
+    bottom: 2,
+  },
+  policeSprite: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 6,
+    borderWidth: 1.2,
+    borderColor: '#4f5c70',
+    backgroundColor: '#f4f7fc',
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+    overflow: 'visible',
+  },
+  policeCabin: {
+    position: 'absolute',
+    top: 1,
+    width: '65%',
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#b9c4d9',
+  },
+  policeStripeBlue: {
+    width: '88%',
+    height: 2,
+    backgroundColor: '#2458a7',
+    borderRadius: 2,
+  },
+  policeStripeGold: {
+    width: '88%',
+    height: 1,
+    marginTop: 1,
+    backgroundColor: '#f0b429',
+    borderRadius: 2,
+  },
+  policeLightBar: {
+    position: 'absolute',
+    top: 0,
+    width: 7,
+    height: 2,
+    borderRadius: 2,
+    backgroundColor: '#4e73df',
   },
   flashArrow: {
     position: 'absolute',
