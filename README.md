@@ -48,6 +48,8 @@ Output archives are written to:
 - `dist-sdk/taxi-rush-sdk-latest.zip`
 - `dist-sdk/taxi-rush-sdk-<timestamp>.zip`
 
+This command is cross-platform and works on Windows (PowerShell), macOS, and Linux.
+
 ## Notes
 
 This is an MVP implementation focused on gameplay mechanics and progression systems from the PRD. Production art assets, advanced pathfinding, audio/haptics integration, and platform release setup can be layered on next.
