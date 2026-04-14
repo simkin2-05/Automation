@@ -29,6 +29,12 @@ npm run start
 
 Then open in Expo Go on Android/iOS or run web preview.
 
+If `expo` is not recognized on Windows, use:
+
+```bash
+npx expo start
+```
+
 ## Notes
 
 This is an MVP implementation focused on gameplay mechanics and progression systems from the PRD. Production art assets, advanced pathfinding, audio/haptics integration, and platform release setup can be layered on next.

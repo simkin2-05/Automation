@@ -1,7 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  GestureResponderEvent,
   PanResponder,
   Pressable,
   StyleSheet,
@@ -106,6 +105,22 @@ export const GameScreen = ({ navigation, route }: Props) => {
   const randomSpawnAccumulatorRef = useRef(0);
   const timeAccumulatorRef = useRef(0);
 
+  const triggerBrake = () => {
+    brakeUntilRef.current = performance.now() + 1000;
+  };
+
+  const turnTaxi = (turn: 'left' | 'right') => {
+    setTaxi((current) => ({
+      ...current,
+      direction:
+        turn === 'right'
+          ? (((current.direction + 90) % 360) as Direction)
+          : (((current.direction + 270) % 360) as Direction),
+    }));
+    setFlashDirection(turn);
+    setTimeout(() => setFlashDirection(null), 300);
+  };
+
   const finishLevel = (won: boolean, reason: LevelResult['reason'], finalTime: number) => {
     if (endedRef.current) {
       return;
@@ -129,10 +144,6 @@ export const GameScreen = ({ navigation, route }: Props) => {
   };
 
   useEffect(() => {
-    const onTapBrake = (_event: GestureResponderEvent) => {
-      brakeUntilRef.current = performance.now() + 1000;
-    };
-
     const loop = (timestamp: number) => {
       if (endedRef.current) {
         return;
@@ -307,13 +318,36 @@ export const GameScreen = ({ navigation, route }: Props) => {
 
     animationRef.current = requestAnimationFrame(loop);
     return () => {
-      onTapBrake;
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [taxi.direction, passengersOnBoard, deliveredPassengers, timeRemaining, entities, stats]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.code === 'ArrowLeft') {
+        event.preventDefault();
+        turnTaxi('left');
+      } else if (event.code === 'ArrowRight') {
+        event.preventDefault();
+        turnTaxi('right');
+      } else if (event.code === 'Space') {
+        event.preventDefault();
+        triggerBrake();
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, []);
 
   const panResponder = useMemo(
     () =>
@@ -322,19 +356,9 @@ export const GameScreen = ({ navigation, route }: Props) => {
           Math.abs(gestureState.dx) > 20 || Math.abs(gestureState.dy) > 20,
         onPanResponderRelease: (_, gestureState) => {
           if (gestureState.dx > 30) {
-            setTaxi((current) => ({
-              ...current,
-              direction: ((current.direction + 90) % 360) as Direction,
-            }));
-            setFlashDirection('right');
-            setTimeout(() => setFlashDirection(null), 300);
+            turnTaxi('right');
           } else if (gestureState.dx < -30) {
-            setTaxi((current) => ({
-              ...current,
-              direction: ((current.direction + 270) % 360) as Direction,
-            }));
-            setFlashDirection('left');
-            setTimeout(() => setFlashDirection(null), 300);
+            turnTaxi('left');
           }
         },
       }),
@@ -345,7 +369,8 @@ export const GameScreen = ({ navigation, route }: Props) => {
     <View style={styles.container}>
       <Hud
         timeRemaining={timeRemaining}
-        passengerCount={deliveredPassengers}
+        passengerCount={passengersOnBoard}
+        deliveredCount={deliveredPassengers}
         targetPassengers={level.targetPassengers}
         capacity={MAX_TAXI_CAPACITY}
         money={state.money}
@@ -353,9 +378,7 @@ export const GameScreen = ({ navigation, route }: Props) => {
       />
 
       <Pressable
-        onPress={() => {
-          brakeUntilRef.current = performance.now() + 1000;
-        }}
+        onPress={triggerBrake}
         style={styles.boardWrap}
         {...panResponder.panHandlers}
       >
@@ -363,7 +386,7 @@ export const GameScreen = ({ navigation, route }: Props) => {
       </Pressable>
 
       <View style={styles.footer}>
-        <Text style={styles.helper}>Swipe left/right to steer • Tap map to brake</Text>
+        <Text style={styles.helper}>Swipe or Arrow keys to steer • Tap or Space to brake</Text>
         <Pressable style={styles.menuButton} onPress={() => navigation.navigate('Home')}>
           <Text style={styles.menuButtonText}>Exit</Text>
         </Pressable>

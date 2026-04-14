@@ -4,6 +4,7 @@ import { StyleSheet, Text, View } from 'react-native';
 interface HudProps {
   timeRemaining: number;
   passengerCount: number;
+  deliveredCount: number;
   targetPassengers: number;
   capacity: number;
   money: number;
@@ -13,6 +14,7 @@ interface HudProps {
 export const Hud = ({
   timeRemaining,
   passengerCount,
+  deliveredCount,
   targetPassengers,
   capacity,
   money,
@@ -29,9 +31,9 @@ export const Hud = ({
       </View>
       <View style={styles.row}>
         <Text style={styles.text}>
-          👥 {passengerCount}/{targetPassengers}
+          👥 Onboard {passengerCount}/{capacity}
         </Text>
-        <Text style={[styles.text, full && styles.full]}>{full ? 'FULL' : `Max ${capacity}`}</Text>
+        <Text style={[styles.text, full && styles.full]}>{full ? 'FULL' : `Delivered ${deliveredCount}/${targetPassengers}`}</Text>
       </View>
       <Text style={[styles.wanted, wanted ? styles.wantedOn : styles.wantedOff]}>
         {wanted ? 'WANTED' : 'CLEAR'}
