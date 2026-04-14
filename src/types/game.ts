@@ -51,6 +51,7 @@ export interface Vec2 {
 }
 
 export type Direction = 0 | 90 | 180 | 270;
+export type TrafficColor = 'purple' | 'yellow' | 'red';
 
 export interface TaxiRuntimeStats {
   taxiSpeed: number;
@@ -71,6 +72,7 @@ export interface RuntimeEntity {
   speed?: number;
   state?: 'PATROL' | 'CHASE';
   nextSwitchAt?: number;
+  trafficColor?: TrafficColor;
 }
 
 export interface LevelResult {
